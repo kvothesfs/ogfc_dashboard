@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OGFC Inference & Interpretability Dashboard</title>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+
+    <!-- Custom Style Base -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-indigo-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <img src="Materials/ogfc_tool/sptc_logo.png" alt="SPTC Logo" class="h-12 bg-white rounded-lg p-1">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight">OGFC ANN Dashboard</h1>
+                    <p class="text-sm text-indigo-200">Secure Inference & Explainability</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4">
+            <nav class="flex gap-8" aria-label="Tabs">
+                <button onclick="switchTab('prediction')" id="tab-prediction" class="border-b-2 border-indigo-600 text-indigo-600 py-4 px-1 font-semibold text-sm transition-colors duration-200 focus:outline-none">
+                    Prediction Control Panel
+                </button>
+                <button onclick="switchTab('xai')" id="tab-xai" class="border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 py-4 px-1 font-semibold text-sm transition-colors duration-200 focus:outline-none">
+                    Model Explainability (XAI)
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-8 w-full">
+        <!-- PREDICTION TAB -->
+        <section id="section-prediction" class="block animate-fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Controls: 2 cols -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                            <h2 class="text-lg font-bold text-slate-800">Input Parameters</h2>
+                        </div>
+                        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <!-- AC Content -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">AC Content (%)</label>
+                                <div class="flex items-center gap-4">
+                                    <input type="range" id="inp-ac" min="5" max="8" step="0.01" value="6.5" class="w-full accent-indigo-600" oninput="document.getElementById('val-ac').textContent=this.value">
+                                    <span id="val-ac" class="w-12 text-sm font-mono bg-slate-100 rounded px-2 py-1 text-center border border-slate-200">6.50</span>
+                                </div>
+                            </div>
+
+                            <!-- Special Materials / Aggregate -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">Special Materials</label>
+                                <select id="inp-aggregate" class="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
+                                    <option value="0">None</option>
+                                    <option value="1">RAP</option>
+                                    <option value="2">RWP</option>
+                                    <option value="3">Steel Slag</option>
+                                    <option value="4">Crumb Rubber</option>
+                                </select>
+                            </div>
+
+                            <!-- Additives -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">Additives</label>
+                                <select id="inp-additive" class="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
+                                    <option value="0">None</option>
+                                    <option value="1">Evotherm</option>
+                                    <option value="2">Zycotherm</option>
+                                    <option value="3">Sasobit</option>
+                                </select>
+                            </div>
+
+                            <!-- Filler -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">Filler</label>
+                                <select id="inp-filler" class="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
+                                    <option value="0">Limestone & Sandstone</option>
+                                    <option value="1">Cement</option>
+                                    <option value="2">Fly Ash</option>
+                                    <option value="3">Traprock</option>
+                                    <option value="4">Granite</option>
+                                    <option value="5">Hydrated Lime</option>
+                                </select>
+                            </div>
+
+                            <!-- NMAS -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">NMAS (%)</label>
+                                <select id="inp-nmas" class="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
+                                    <option value="0">12.5 mm</option>
+                                    <option value="1">9.5 mm</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Passing Sieve Gradation Sliders -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                            <h2 class="text-lg font-bold text-slate-800">Gradation: Passing Sieve (%)</h2>
+                            <button class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded transition" onclick="resetGradation()">Reset Defaults</button>
+                        </div>
+                        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                            <!-- Sliders generated by JS below to keep HTML clean -->
+                            <div id="grad-sliders-container" class="contents"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prediction output side -->
+                <div class="space-y-6">
+                    <button id="btn-predict" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-transform transform active:scale-95 flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Run Inference
+                    </button>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[400px] flex flex-col">
+                        <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                            <h2 class="text-lg font-bold text-slate-800">Results</h2>
+                        </div>
+                        <div class="p-6 flex-grow relative">
+                            <!-- Overlay loading -->
+                            <div id="loading-overlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm hidden flex-col justify-center items-center z-10 rounded-b-xl">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                                <p class="mt-4 text-sm text-slate-600 font-medium">Decrypting & Inferencing...</p>
+                            </div>
+
+                            <p class="text-sm text-slate-500 mb-2 pb-2 border-b border-dashed border-slate-200">
+                                The bullet plots below display the <span class="font-bold text-indigo-700 bg-indigo-50 px-1 rounded">Prediction</span>, the <span class="bg-slate-200 text-slate-700 px-1 rounded font-medium">95% C.I. Background</span>, and the <span class="text-red-600 font-bold border-r-2 border-red-600 mr-1"></span><span class="text-slate-700 font-medium">Specification Threshold</span>.
+                            </p>
+                            
+                            <div id="prediction-results-body" class="w-full flex-col space-y-4 py-4 min-h-[300px]">
+                                <div class="text-center text-slate-400 mt-10">Click predict to run.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- XAI TAB -->
+        <section id="section-xai" class="hidden animate-fade-in">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Shapley Value Explainability</h2>
+                        <p class="text-sm text-slate-500">Interactive charts detailing variable impact across the 5 performance indicators.</p>
+                    </div>
+                    <select id="xai-indicator-select" class="rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm p-2 border font-medium">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                
+                <div class="p-6">
+                    <div id="xai-loading" class="flex flex-col justify-center items-center py-20 text-slate-400">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"></div>
+                        <p>Loading Shapley baselines...</p>
+                    </div>
+                    <div id="xai-chart-container" class="w-full h-[600px] hidden">
+                        <!-- Plotly goes here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Global Info Panel -->
+            <div class="bg-indigo-50 rounded-xl p-6 border border-indigo-100 text-slate-700">
+                <h3 class="font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                    Understanding Shapley Values
+                </h3>
+                <p class="text-sm leading-relaxed mb-2">SHAP (SHapley Additive exPlanations) values break down a prediction to show the impact of each feature. A <span class="bg-emerald-100 text-emerald-800 font-semibold px-1 rounded">positive value</span> pushes the prediction higher, while a <span class="bg-rose-100 text-rose-800 font-semibold px-1 rounded">negative value</span> pushes it lower.</p>
+                <p class="text-sm leading-relaxed">The chart displays dynamically based on the current inputs in the <b>Prediction Control Panel</b> compared against a pre-sampled baseline of combinations. Modify parameters on the first tab and switch back to see the exact contributions recalculate.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script src="xai.js"></script>
+</body>
+</html>
