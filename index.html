@@ -38,6 +38,10 @@
                 <button onclick="switchTab('xai')" id="tab-xai" class="border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 py-4 px-1 font-semibold text-sm transition-colors duration-200 focus:outline-none">
                     Model Explainability (XAI)
                 </button>
+                <button onclick="switchTab('optimizer')" id="tab-optimizer" class="border-b-2 border-transparent text-emerald-600 hover:text-emerald-700 hover:border-emerald-300 py-4 px-1 font-semibold text-sm transition-colors duration-200 focus:outline-none flex gap-2 items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    Mix Optimizer
+                </button>
             </nav>
         </div>
     </div>
@@ -48,7 +52,7 @@
         <section id="section-prediction" class="block animate-fade-in">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Controls: 2 cols -->
-                <div class="lg:col-span-2 space-y-6">
+                <div class="lg:col-span-2 space-y-6" id="prediction-controls">
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
                             <h2 class="text-lg font-bold text-slate-800">Input Parameters</h2>
@@ -144,12 +148,36 @@
                                 <p class="mt-4 text-sm text-slate-600 font-medium">Decrypting & Inferencing...</p>
                             </div>
 
-                            <p class="text-sm text-slate-500 mb-2 pb-2 border-b border-dashed border-slate-200">
-                                The bullet plots below display the <span class="font-bold text-indigo-700 bg-indigo-50 px-1 rounded">Prediction</span>, the <span class="bg-slate-200 text-slate-700 px-1 rounded font-medium">95% C.I. Background</span>, and the <span class="text-red-600 font-bold border-r-2 border-red-600 mr-1"></span><span class="text-slate-700 font-medium">Specification Threshold</span>.
-                            </p>
+                            <div class="flex justify-between items-end mb-4 pb-2 border-b border-dashed border-slate-200 gap-4">
+                                <p class="text-sm text-slate-500">
+                                    Bullet plots display the <span class="font-bold text-indigo-700 bg-indigo-50 px-1 rounded">Prediction</span> wrapped loosely by the <span class="text-slate-500">95% C.I.</span> overlay, compared against the <span class="text-emerald-700 bg-emerald-100 px-1 rounded font-bold">Acceptable Zone</span>.
+                                </p>
+                                <div class="flex bg-slate-100 rounded-lg p-1 shrink-0 border border-slate-200">
+                                    <button id="btn-view-visual" onclick="toggleResultsView('visual')" class="px-3 py-1 text-sm font-semibold rounded-md bg-white text-indigo-700 shadow-sm transition">Bullets</button>
+                                    <button id="btn-view-data" onclick="toggleResultsView('data')" class="px-3 py-1 text-sm font-medium rounded-md text-slate-500 hover:text-slate-700 transition">Table</button>
+                                </div>
+                            </div>
                             
-                            <div id="prediction-results-body" class="w-full flex-col space-y-4 py-4 min-h-[300px]">
-                                <div class="text-center text-slate-400 mt-10">Click predict to run.</div>
+                            <div id="results-visual" class="w-full flex flex-col space-y-4 py-2 min-h-[300px]">
+                                <div id="prediction-results-plots" class="w-full">
+                                    <div class="text-center text-slate-400 mt-10">Click predict to run.</div>
+                                </div>
+                            </div>
+
+                            <div id="results-data" class="w-full hidden animate-fade-in min-h-[300px]">
+                                <table class="w-full text-sm text-left">
+                                    <thead>
+                                        <tr class="text-slate-500 border-b border-slate-200">
+                                            <th class="py-2 px-4 font-medium">Performance Indicator</th>
+                                            <th class="py-2 px-4 font-medium text-right">Lower Bound</th>
+                                            <th class="py-2 px-4 font-medium text-right">Prediction</th>
+                                            <th class="py-2 px-4 font-medium text-right">Upper Bound</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="prediction-results-table" class="divide-y divide-slate-100 uppercase text-[10px]">
+                                        <tr><td colspan="4" class="py-10 text-center text-slate-400 tracking-widest">Click predict to run.</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -193,9 +221,79 @@
                 <p class="text-sm leading-relaxed">The chart displays dynamically based on the current inputs in the <b>Prediction Control Panel</b> compared against a pre-sampled baseline of combinations. Modify parameters on the first tab and switch back to see the exact contributions recalculate.</p>
             </div>
         </section>
+
+        <!-- OPTIMIZER TAB -->
+        <section id="section-optimizer" class="hidden animate-fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Optimizer Controls -->
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="px-6 py-4 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
+                            <h2 class="text-lg font-bold text-emerald-900">Optimization Rules</h2>
+                        </div>
+                        <div class="p-6 space-y-4 text-sm text-slate-700">
+                            <p>Select which variables should be <b>Locked</b> to their values in the Prediction Panel vs which should be <b>Tuned</b>. The engine evaluates every possible combination of Tuned parameters!</p>
+                            
+                            <div class="space-y-3 mt-4">
+                                <label class="flex items-center space-x-3 p-2 hover:bg-slate-50 rounded cursor-pointer">
+                                    <input type="checkbox" id="opt-lock-ac" class="form-checkbox h-5 w-5 text-emerald-600 rounded">
+                                    <span class="font-medium">Lock AC Content</span>
+                                </label>
+                                <label class="flex items-center space-x-3 p-2 hover:bg-slate-50 rounded cursor-pointer">
+                                    <input type="checkbox" id="opt-lock-agg" class="form-checkbox h-5 w-5 text-emerald-600 rounded">
+                                    <span class="font-medium">Lock Special Materials</span>
+                                </label>
+                                <label class="flex items-center space-x-3 p-2 hover:bg-slate-50 rounded cursor-pointer">
+                                    <input type="checkbox" id="opt-lock-add" class="form-checkbox h-5 w-5 text-emerald-600 rounded">
+                                    <span class="font-medium">Lock Additives</span>
+                                </label>
+                                <label class="flex items-center space-x-3 p-2 hover:bg-slate-50 rounded cursor-pointer">
+                                    <input type="checkbox" id="opt-lock-fill" class="form-checkbox h-5 w-5 text-emerald-600 rounded">
+                                    <span class="font-medium">Lock Filler</span>
+                                </label>
+                                <label class="flex items-center space-x-3 p-2 hover:bg-slate-50 rounded cursor-pointer">
+                                    <input type="checkbox" id="opt-lock-nmas" class="form-checkbox h-5 w-5 text-emerald-600 rounded" checked>
+                                    <span class="font-medium">Lock NMAS <span class="text-slate-400 text-xs">(Default)</span></span>
+                                </label>
+                            </div>
+                            
+                            <p class="text-xs text-slate-400 border-t border-slate-100 pt-4 mb-4">Note: Gradation curves are always locked to the Prediction Panel configuration to preserve physical aggregate structure.</p>
+                            
+                            <button id="btn-run-optimizer" onclick="if(window.runOptimizer) window.runOptimizer()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow transition active:scale-95 flex justify-center items-center gap-2">
+                                Run Optimization
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Optimizer Results -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px] flex flex-col">
+                        <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                            <h2 class="text-lg font-bold text-slate-800">Top 3 Recommended Mixes</h2>
+                            <span id="opt-results-count" class="text-xs font-bold bg-slate-200 text-slate-600 px-2 py-1 rounded">Ready</span>
+                        </div>
+                        <div class="p-6 relative flex-grow bg-slate-50/50">
+                            <div id="opt-loading-overlay" class="absolute inset-0 bg-white/90 backdrop-blur-sm hidden flex-col justify-center items-center z-10">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+                                <p class="mt-4 text-sm text-slate-600 font-medium" id="opt-status-text">Evaluating permutations...</p>
+                            </div>
+                            
+                            <div id="optimizer-results-container" class="space-y-4">
+                                <div class="text-center text-slate-400 mt-20 flex flex-col items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-slate-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                                    Click "Run Optimization" to search the parameter space.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <script src="app.js"></script>
     <script src="xai.js"></script>
+    <script src="optimizer.js"></script>
 </body>
 </html>
