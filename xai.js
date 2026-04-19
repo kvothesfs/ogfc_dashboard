@@ -58,6 +58,9 @@ async function renderShapleyPlots(inputFlatArray) {
     }
 
     try {
+        // Clear UI states that might have been set by the initialization warning
+        document.getElementById('xai-loading').style.display = 'none';
+        document.getElementById('xai-chart-container').classList.remove('hidden');
 
     const select = document.getElementById('xai-indicator-select');
     const idx = parseInt(select.value); // 0 to 4 mapping exactly to the neural network output columns
