@@ -45,6 +45,18 @@ async function renderShapleyPlots(inputFlatArray) {
     if (!xaiInitialized || !shapBackground) return;
     if (!inputFlatArray) return; // Wait for valid input
 
+    if (typeof window.ortSession === "undefined" || !window.ortSession) {
+        document.getElementById('xai-loading').style.display = 'block';
+        document.getElementById('xai-loading').innerHTML = `
+            <div class="p-8 text-center bg-slate-50 rounded-lg border border-slate-200 flex flex-col items-center justify-center mt-12 mx-auto max-w-md">
+                <svg class="w-12 h-12 mb-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <h3 class="font-bold text-lg text-slate-700">Model not initialized</h3>
+                <p class="text-sm mt-2 text-slate-500">Please click "Calculate Performance" on the Prediction tab first to securely load the ONNX model.</p>
+            </div>`;
+        document.getElementById('xai-chart-container').classList.add('hidden');
+        return;
+    }
+
     try {
 
     const select = document.getElementById('xai-indicator-select');
